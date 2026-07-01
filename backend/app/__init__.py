@@ -1,0 +1,1 @@
+"""SmartFridge backend package."""
