@@ -43,3 +43,17 @@ def test_fridge_photo_upload_accepts_file():
     assert data["filename"] == "fridge.jpg"
     assert data["content_type"] == "image/jpeg"
     assert data["size_bytes"] == len(b"fake image bytes")
+    assert data["ingredients"] == []
+    assert data["status"] == "received"
+
+
+def test_fridge_photo_upload_flags_non_image_files():
+    response = client.post(
+        "/fridge-photo",
+        files={"file": ("notes.txt", b"not an image", "text/plain")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["content_type"] == "text/plain"
+    assert data["status"] == "unsupported_file_type"

@@ -21,3 +21,11 @@ class RecipeRecommendation(BaseModel):
     matched_ingredients: list[str] = Field(default_factory=list)
     missing_ingredients: list[str] = Field(default_factory=list)
     score: float = Field(..., ge=0, le=1)
+
+
+class PhotoAnalysisResult(BaseModel):
+    filename: str | None = None
+    content_type: str | None = None
+    size_bytes: int = Field(..., ge=0)
+    ingredients: list[Ingredient] = Field(default_factory=list)
+    status: str
