@@ -57,3 +57,15 @@ def test_fridge_photo_upload_flags_non_image_files():
     data = response.json()
     assert data["content_type"] == "text/plain"
     assert data["status"] == "unsupported_file_type"
+
+
+def test_fridge_photo_upload_flags_empty_image_files():
+    response = client.post(
+        "/fridge-photo",
+        files={"file": ("empty.jpg", b"", "image/jpeg")},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["size_bytes"] == 0
+    assert data["status"] == "empty_file"

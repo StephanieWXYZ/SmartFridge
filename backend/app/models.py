@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -28,4 +30,4 @@ class PhotoAnalysisResult(BaseModel):
     content_type: str | None = None
     size_bytes: int = Field(..., ge=0)
     ingredients: list[Ingredient] = Field(default_factory=list)
-    status: str
+    status: Literal["received", "unsupported_file_type", "empty_file"]
