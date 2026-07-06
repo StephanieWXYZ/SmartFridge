@@ -31,3 +31,15 @@ class PhotoAnalysisResult(BaseModel):
     size_bytes: int = Field(..., ge=0)
     ingredients: list[Ingredient] = Field(default_factory=list)
     status: Literal["received", "unsupported_file_type", "empty_file"]
+
+
+class TaskSubmission(BaseModel):
+    task_id: str
+    status: Literal["queued"]
+
+
+class TaskStatus(BaseModel):
+    task_id: str
+    status: str
+    result: PhotoAnalysisResult | None = None
+    error: str | None = None

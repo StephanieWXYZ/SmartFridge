@@ -1,8 +1,9 @@
+from celery.result import AsyncResult
 from fastapi import FastAPI, File, UploadFile
 
-from app.models import FridgeInventory, PhotoAnalysisResult, RecipeRecommendation
-from app.photo_analysis import analyze_fridge_photo
+from app.models import FridgeInventory, RecipeRecommendation, TaskStatus, TaskSubmission
 from app.recommendations import recommend_recipes
+from app.worker import analyze_fridge_photo_task, celery_app
 
 app = FastAPI(
     title="SmartFridge API",
@@ -20,7 +21,21 @@ def create_recommendations(inventory: FridgeInventory) -> list[RecipeRecommendat
     return recommend_recipes(inventory)
 
 
-@app.post("/fridge-photo", response_model=PhotoAnalysisResult)
-async def upload_fridge_photo(file: UploadFile = File(...)) -> PhotoAnalysisResult:
+@app.post("/fridge-photo", response_model=TaskSubmission)
+async def upload_fridge_photo(file: UploadFile = File(...)) -> TaskSubmission:
     contents = await file.read()
-    return analyze_fridge_photo(file.filename, file.content_type, contents)
+    task = analyze_fridge_photo_task.delay(file.filename, file.content_type, contents.hex())
+    return TaskSubmission(task_id=task.id, status="queued")
+
+
+@app.get("/tasks/{task_id}", response_model=TaskStatus)
+def get_task_status(task_id: str) -> TaskStatus:
+    task_result = AsyncResult(task_id, app=celery_app)
+
+    if task_result.ready():
+        if task_result.successful():
+            return TaskStatus(task_id=task_id, status=task_result.status, result=task_result.result)
+
+        return TaskStatus(task_id=task_id, status="FAILURE", error=str(task_result.info))
+
+    return TaskStatus(task_id=task_id, status=task_result.status)

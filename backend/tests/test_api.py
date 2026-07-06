@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+import app.main as main_module
 from app.main import app
 
 
@@ -32,7 +33,19 @@ def test_recommendations_return_best_match_first():
     assert data[0]["missing_ingredients"] == ["cheese"]
 
 
-def test_fridge_photo_upload_accepts_file():
+class FakeTask:
+    id = "task-123"
+
+
+def test_fridge_photo_upload_queues_background_task(monkeypatch):
+    calls = []
+
+    def fake_delay(filename, content_type, contents_hex):
+        calls.append((filename, content_type, contents_hex))
+        return FakeTask()
+
+    monkeypatch.setattr(main_module.analyze_fridge_photo_task, "delay", fake_delay)
+
     response = client.post(
         "/fridge-photo",
         files={"file": ("fridge.jpg", b"fake image bytes", "image/jpeg")},
@@ -40,32 +53,5 @@ def test_fridge_photo_upload_accepts_file():
 
     assert response.status_code == 200
     data = response.json()
-    assert data["filename"] == "fridge.jpg"
-    assert data["content_type"] == "image/jpeg"
-    assert data["size_bytes"] == len(b"fake image bytes")
-    assert data["ingredients"] == []
-    assert data["status"] == "received"
-
-
-def test_fridge_photo_upload_flags_non_image_files():
-    response = client.post(
-        "/fridge-photo",
-        files={"file": ("notes.txt", b"not an image", "text/plain")},
-    )
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["content_type"] == "text/plain"
-    assert data["status"] == "unsupported_file_type"
-
-
-def test_fridge_photo_upload_flags_empty_image_files():
-    response = client.post(
-        "/fridge-photo",
-        files={"file": ("empty.jpg", b"", "image/jpeg")},
-    )
-
-    assert response.status_code == 200
-    data = response.json()
-    assert data["size_bytes"] == 0
-    assert data["status"] == "empty_file"
+    assert data == {"task_id": "task-123", "status": "queued"}
+    assert calls == [("fridge.jpg", "image/jpeg", b"fake image bytes".hex())]
