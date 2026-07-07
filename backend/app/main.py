@@ -3,7 +3,7 @@ from fastapi import FastAPI, File, UploadFile
 
 from app.models import FridgeInventory, RecipeRecommendation, TaskStatus, TaskSubmission
 from app.recommendations import recommend_recipes
-from app.worker import analyze_fridge_photo_task, celery_app
+from app.worker import build_recipe_pipeline, celery_app
 
 app = FastAPI(
     title="SmartFridge API",
@@ -24,7 +24,8 @@ def create_recommendations(inventory: FridgeInventory) -> list[RecipeRecommendat
 @app.post("/fridge-photo", response_model=TaskSubmission)
 async def upload_fridge_photo(file: UploadFile = File(...)) -> TaskSubmission:
     contents = await file.read()
-    task = analyze_fridge_photo_task.delay(file.filename, file.content_type, contents.hex())
+    workflow = build_recipe_pipeline(file.filename, file.content_type, contents.hex())
+    task = workflow.apply_async()
     return TaskSubmission(task_id=task.id, status="queued")
 
 

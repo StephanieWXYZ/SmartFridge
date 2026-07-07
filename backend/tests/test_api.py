@@ -40,11 +40,16 @@ class FakeTask:
 def test_fridge_photo_upload_queues_background_task(monkeypatch):
     calls = []
 
-    def fake_delay(filename, content_type, contents_hex):
-        calls.append((filename, content_type, contents_hex))
-        return FakeTask()
+    class FakePipeline:
+        def apply_async(self):
+            calls.append("apply_async")
+            return FakeTask()
 
-    monkeypatch.setattr(main_module.analyze_fridge_photo_task, "delay", fake_delay)
+    def fake_build_recipe_pipeline(filename, content_type, contents_hex):
+        calls.append((filename, content_type, contents_hex))
+        return FakePipeline()
+
+    monkeypatch.setattr(main_module, "build_recipe_pipeline", fake_build_recipe_pipeline)
 
     response = client.post(
         "/fridge-photo",
@@ -54,4 +59,4 @@ def test_fridge_photo_upload_queues_background_task(monkeypatch):
     assert response.status_code == 200
     data = response.json()
     assert data == {"task_id": "task-123", "status": "queued"}
-    assert calls == [("fridge.jpg", "image/jpeg", b"fake image bytes".hex())]
+    assert calls == [("fridge.jpg", "image/jpeg", b"fake image bytes".hex()), "apply_async"]

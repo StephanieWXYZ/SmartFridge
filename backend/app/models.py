@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -41,5 +41,5 @@ class TaskSubmission(BaseModel):
 class TaskStatus(BaseModel):
     task_id: str
     status: str
-    result: PhotoAnalysisResult | None = None
+    result: dict[str, Any] | None = None
     error: str | None = None

@@ -1,9 +1,11 @@
 import binascii
 import os
 
-from celery import Celery
+from celery import Celery, chain
 
+from app.models import FridgeInventory
 from app.photo_analysis import analyze_fridge_photo
+from app.recommendations import recommend_recipes
 
 celery_app = Celery(
     "smartfridge_worker",
@@ -12,8 +14,16 @@ celery_app = Celery(
 )
 
 
-@celery_app.task(name="analyze_fridge_photo_task")
-def analyze_fridge_photo_task(
+def build_recipe_pipeline(filename: str | None, content_type: str | None, contents_hex: str):
+    return chain(
+        extract_ingredients_task.s(filename, content_type, contents_hex),
+        match_recipes_task.s(),
+        refine_recipe_task.s(),
+    )
+
+
+@celery_app.task(name="extract_ingredients_task")
+def extract_ingredients_task(
     filename: str | None,
     content_type: str | None,
     contents_hex: str,
@@ -21,3 +31,34 @@ def analyze_fridge_photo_task(
     contents = binascii.unhexlify(contents_hex)
     result = analyze_fridge_photo(filename, content_type, contents)
     return result.model_dump()
+
+
+@celery_app.task(name="match_recipes_task")
+def match_recipes_task(photo_result: dict[str, object]) -> dict[str, object]:
+    if photo_result["status"] != "received":
+        return {
+            "photo": photo_result,
+            "recommendations": [],
+            "status": photo_result["status"],
+        }
+
+    inventory = FridgeInventory.model_validate({"ingredients": photo_result["ingredients"]})
+    recommendations = recommend_recipes(inventory)
+
+    return {
+        "photo": photo_result,
+        "recommendations": [recommendation.model_dump() for recommendation in recommendations],
+        "status": "matched",
+    }
+
+
+@celery_app.task(name="refine_recipe_task")
+def refine_recipe_task(matching_result: dict[str, object]) -> dict[str, object]:
+    if matching_result["status"] != "matched":
+        return matching_result
+
+    return {
+        **matching_result,
+        "status": "refinement_pending",
+        "message": "Recipe refinement will be connected to an AI model later.",
+    }
