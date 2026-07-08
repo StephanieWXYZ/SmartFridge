@@ -6,6 +6,7 @@ from celery import Celery, chain
 from app.models import FridgeInventory
 from app.photo_analysis import analyze_fridge_photo
 from app.recipe_search import search_recipes
+from app.recipe_refiner import refine_recipe
 
 celery_app = Celery(
     "smartfridge_worker",
@@ -57,8 +58,4 @@ def refine_recipe_task(matching_result: dict[str, object]) -> dict[str, object]:
     if matching_result["status"] != "matched":
         return matching_result
 
-    return {
-        **matching_result,
-        "status": "refinement_pending",
-        "message": "Recipe refinement will be connected to an AI model later.",
-    }
+    return refine_recipe(matching_result)

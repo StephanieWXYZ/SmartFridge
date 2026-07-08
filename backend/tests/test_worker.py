@@ -56,7 +56,16 @@ def test_match_recipes_task_searches_with_extracted_ingredients(monkeypatch):
     assert result["status"] == "matched"
 
 
-def test_refine_recipe_task_marks_ai_refinement_as_pending():
+def test_refine_recipe_task_calls_refiner(monkeypatch):
+    def fake_refine_recipe(matching_result):
+        return {
+            **matching_result,
+            "refined_recipe": {"best_match": "Egg Bowl"},
+            "status": "refined",
+        }
+
+    monkeypatch.setattr(worker_module, "refine_recipe", fake_refine_recipe)
+
     result = refine_recipe_task.run(
         {
             "photo": {"ingredients": []},
@@ -65,5 +74,5 @@ def test_refine_recipe_task_marks_ai_refinement_as_pending():
         }
     )
 
-    assert result["status"] == "refinement_pending"
-    assert "AI model" in result["message"]
+    assert result["status"] == "refined"
+    assert result["refined_recipe"]["best_match"] == "Egg Bowl"

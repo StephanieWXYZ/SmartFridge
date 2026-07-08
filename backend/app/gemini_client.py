@@ -29,3 +29,47 @@ def extract_ingredients_with_gemini(image_bytes: bytes) -> list[Ingredient]:
     ingredient_names = json.loads(clean_json)
 
     return [Ingredient(name=name) for name in ingredient_names]
+
+
+def refine_recipe_with_gemini(
+    ingredients: list[dict[str, object]],
+    recommendations: list[dict[str, object]],
+) -> dict[str, object]:
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return {
+            "best_match": None,
+            "instructions": [],
+            "substitutions": {},
+            "shopping_list": [],
+            "status": "ai_not_configured",
+        }
+
+    client = genai.Client(api_key=api_key)
+    prompt = f"""
+    You are a helpful chef. The user has these ingredients:
+    {ingredients}
+
+    These recipes were retrieved from the recipe index:
+    {recommendations}
+
+    Select the best recipe, suggest substitutions from the user's ingredients,
+    and list only the missing items they still need to buy.
+
+    Return JSON with:
+    {{
+        "best_match": "Recipe title",
+        "instructions": ["step 1", "step 2"],
+        "substitutions": {{"original": "substitute"}},
+        "shopping_list": ["item"]
+    }}
+    """
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
+    clean_json = response.text.replace("```json", "").replace("```", "").strip()
+    result = json.loads(clean_json)
+    result["status"] = "refined"
+    return result
