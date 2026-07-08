@@ -5,7 +5,7 @@ from celery import Celery, chain
 
 from app.models import FridgeInventory
 from app.photo_analysis import analyze_fridge_photo
-from app.recommendations import recommend_recipes
+from app.recipe_search import search_recipes
 
 celery_app = Celery(
     "smartfridge_worker",
@@ -43,7 +43,7 @@ def match_recipes_task(photo_result: dict[str, object]) -> dict[str, object]:
         }
 
     inventory = FridgeInventory.model_validate({"ingredients": photo_result["ingredients"]})
-    recommendations = recommend_recipes(inventory)
+    recommendations = search_recipes(inventory)
 
     return {
         "photo": photo_result,
