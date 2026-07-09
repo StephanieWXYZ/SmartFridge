@@ -20,3 +20,14 @@ http://127.0.0.1:8000/docs
 ```
 
 The first recommendation endpoint accepts ingredients and returns matching recipe ideas.
+
+## Docker
+
+To run the API, worker, and Redis together:
+
+```bash
+cd backend
+docker compose up --build
+```
+
+The web service runs on `http://127.0.0.1:8000`.
