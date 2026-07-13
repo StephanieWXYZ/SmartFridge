@@ -1,6 +1,8 @@
 # SmartFridge
 > AI-Powered Fridge-to-Recipe Recommendation System
 
+[![Backend CI](https://github.com/StephanieWXYZ/SmartFridge/actions/workflows/ci.yml/badge.svg)](https://github.com/StephanieWXYZ/SmartFridge/actions/workflows/ci.yml)
+
 ## Backend
 
 The backend is a FastAPI app. To run it locally:
@@ -31,3 +33,8 @@ docker compose up --build
 ```
 
 The web service runs on `http://127.0.0.1:8000`.
+
+## CI
+
+GitHub Actions runs backend linting, tests, and a Docker image build on pushes and pull
+requests to `main`.
