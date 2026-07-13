@@ -38,3 +38,8 @@ The web service runs on `http://127.0.0.1:8000`.
 
 GitHub Actions runs backend linting, tests, and a Docker image build on pushes and pull
 requests to `main`.
+
+## Infrastructure
+
+Terraform files in `backend/terraform` define the AWS ECS deployment for the FastAPI web
+service, Celery worker, Redis service, load balancer, networking, and logs.
