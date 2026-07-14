@@ -1,13 +1,7 @@
 name: Deploy SmartFridge to ECS
 
 on:
-  push:
-    branches: ["main"]
-    paths:
-      - "backend/app/**"
-      - "backend/Dockerfile"
-      - "backend/pyproject.toml"
-      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
 
 env:
   AWS_REGION: us-east-2
