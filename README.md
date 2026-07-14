@@ -48,3 +48,14 @@ service, Celery worker, Redis service, load balancer, networking, and logs.
 
 The deployment workflow builds separate web and worker Docker images, pushes them to
 Amazon ECR, and forces the ECS web and worker services to redeploy.
+
+## Recipe Indexing
+
+The `backend/scripts/index_recipes.py` script indexes a CSV or JSONL recipe dataset into
+Pinecone using OpenAI ingredient embeddings. It is intended for one-time dataset setup,
+not automatic CI or deployment.
+
+```bash
+cd backend
+OPENAI_API_KEY=... PINECONE_API_KEY=... python scripts/index_recipes.py path/to/recipes.jsonl
+```
