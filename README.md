@@ -43,3 +43,8 @@ requests to `main`.
 
 Terraform files in `backend/terraform` define the AWS ECS deployment for the FastAPI web
 service, Celery worker, Redis service, load balancer, networking, and logs.
+
+## Deployment
+
+The deployment workflow builds separate web and worker Docker images, pushes them to
+Amazon ECR, and forces the ECS web and worker services to redeploy.
