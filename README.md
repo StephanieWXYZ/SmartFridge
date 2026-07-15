@@ -59,3 +59,14 @@ not automatic CI or deployment.
 cd backend
 OPENAI_API_KEY=... PINECONE_API_KEY=... python scripts/index_recipes.py path/to/recipes.jsonl
 ```
+
+## Benchmarking
+
+The `backend/scripts/benchmark_pipeline.py` script measures end-to-end latency for the
+photo upload, Celery pipeline, recipe search, and refinement flow. Run this only after
+the API, worker, Redis, and required AI service keys are configured.
+
+```bash
+cd backend
+python scripts/benchmark_pipeline.py path/to/fridge.jpg --runs 5
+```
