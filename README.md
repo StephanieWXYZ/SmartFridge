@@ -23,6 +23,9 @@ http://127.0.0.1:8000/docs
 
 The first recommendation endpoint accepts ingredients and returns matching recipe ideas.
 
+See [SmartFridge Architecture](docs/architecture.md) for the backend pipeline and
+deployment layout.
+
 ## Environment
 
 Copy `backend/.env.example` to `backend/.env` for local development and fill in any
