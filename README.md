@@ -23,6 +23,24 @@ http://127.0.0.1:8000/docs
 
 The first recommendation endpoint accepts ingredients and returns matching recipe ideas.
 
+## Environment
+
+Copy `backend/.env.example` to `backend/.env` for local development and fill in any
+service keys you want to use.
+
+```bash
+cd backend
+cp .env.example .env
+```
+
+The backend can run without AI keys for local tests, but full image-to-recipe generation
+uses:
+
+- `GOOGLE_API_KEY` for Gemini ingredient extraction and recipe refinement
+- `OPENAI_API_KEY` for ingredient embeddings
+- `PINECONE_API_KEY` and `PINECONE_INDEX_NAME` for recipe vector search
+- `REDIS_URL` for Celery task queue and results
+
 ## Docker
 
 To run the API, worker, and Redis together:
