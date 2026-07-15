@@ -5,7 +5,24 @@
 
 ## Backend
 
-The backend is a FastAPI app. To run it locally:
+SmartFridge uses a FastAPI backend, Celery worker, Redis queue, and AI-powered recipe
+retrieval pipeline to turn fridge photos or ingredient lists into recipe
+recommendations.
+
+Key backend capabilities:
+
+- async image-to-recipe workflow with FastAPI, Celery, and Redis
+- 3-stage pipeline for ingredient extraction, recipe retrieval, and recipe refinement
+- OpenAI embeddings with Pinecone vector search for recipe matching
+- Docker Compose for local web, worker, and Redis services
+- Terraform and GitHub Actions for AWS ECS deployment
+
+See [SmartFridge Architecture](docs/architecture.md) for the backend pipeline and
+deployment layout.
+
+## Local Development
+
+To run the API locally:
 
 ```bash
 cd backend
@@ -21,23 +38,18 @@ Once it is running, the API docs are available at:
 http://127.0.0.1:8000/docs
 ```
 
-The first recommendation endpoint accepts ingredients and returns matching recipe ideas.
-
-See [SmartFridge Architecture](docs/architecture.md) for the backend pipeline and
-deployment layout.
-
 ## Environment
 
-Copy `backend/.env.example` to `backend/.env` for local development and fill in any
-service keys you want to use.
+Copy `backend/.env.example` to `backend/.env` and provide service credentials for the
+AI-backed workflow.
 
 ```bash
 cd backend
 cp .env.example .env
 ```
 
-The backend can run without AI keys for local tests, but full image-to-recipe generation
-uses:
+The backend supports deterministic local tests without external AI credentials. Full
+image-to-recipe generation uses:
 
 - `GOOGLE_API_KEY` for Gemini ingredient extraction and recipe refinement
 - `OPENAI_API_KEY` for ingredient embeddings
@@ -70,11 +82,12 @@ service, Celery worker, Redis service, load balancer, networking, and logs.
 The deployment workflow builds separate web and worker Docker images, pushes them to
 Amazon ECR, and forces the ECS web and worker services to redeploy.
 
+See [Deployment](docs/deployment.md) for the required cloud setup and release steps.
+
 ## Recipe Indexing
 
 The `backend/scripts/index_recipes.py` script indexes a CSV or JSONL recipe dataset into
-Pinecone using OpenAI ingredient embeddings. It is intended for one-time dataset setup,
-not automatic CI or deployment.
+Pinecone using OpenAI ingredient embeddings.
 
 ```bash
 cd backend
@@ -84,10 +97,11 @@ OPENAI_API_KEY=... PINECONE_API_KEY=... python scripts/index_recipes.py path/to/
 ## Benchmarking
 
 The `backend/scripts/benchmark_pipeline.py` script measures end-to-end latency for the
-photo upload, Celery pipeline, recipe search, and refinement flow. Run this only after
-the API, worker, Redis, and required AI service keys are configured.
+photo upload, Celery pipeline, recipe search, and refinement flow.
 
 ```bash
 cd backend
 python scripts/benchmark_pipeline.py path/to/fridge.jpg --runs 5
 ```
+
+See [Benchmarking](docs/benchmarking.md) for the measurement workflow.

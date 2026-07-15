@@ -1,8 +1,8 @@
-# SmartFridge Architecture
+# Architecture
 
 SmartFridge is organized around a FastAPI gateway and a Celery background pipeline.
-The API accepts requests quickly, while longer AI and retrieval work runs in worker
-tasks backed by Redis.
+The API returns a task ID for image-based requests, while longer AI and retrieval work
+runs in worker tasks backed by Redis.
 
 ## Request Flow
 
@@ -30,8 +30,8 @@ Client
 
    `match_recipes_task` turns extracted ingredients into a recipe search request. When
    OpenAI and Pinecone keys are configured, it creates an OpenAI embedding and queries
-   the Pinecone recipe index. Without those keys, it falls back to local starter recipes
-   so tests and local development still work.
+   the Pinecone recipe index. Local fallback recommendations keep development and tests
+   deterministic when external AI credentials are not configured.
 
 3. Recipe refinement
 
@@ -48,8 +48,8 @@ Client
 - Terraform defines the ECS deployment for web, worker, Redis, networking, load
   balancing, and logs.
 
-## Operational Notes
+## Deployment Model
 
-The deployment workflow is manual so pushes do not accidentally create cloud activity.
-Terraform and the benchmark script should only be run intentionally, with API keys and
-AWS resources configured.
+The production deployment uses separate ECS services for the FastAPI web process, Celery
+worker process, and Redis. The GitHub Actions deployment workflow is manually triggered
+and publishes separate Docker images for the web and worker services.
