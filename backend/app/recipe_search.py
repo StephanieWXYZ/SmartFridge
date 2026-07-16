@@ -1,4 +1,5 @@
 import os
+from functools import lru_cache
 
 from openai import OpenAI
 from pinecone import Pinecone
@@ -18,9 +19,8 @@ def search_recipes(inventory: FridgeInventory) -> list[RecipeRecommendation]:
     if not query_text:
         return []
 
-    openai_client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    pinecone_client = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-    index = pinecone_client.Index(PINECONE_INDEX_NAME)
+    openai_client = _openai_client(os.environ["OPENAI_API_KEY"])
+    index = _pinecone_index(os.environ["PINECONE_API_KEY"], PINECONE_INDEX_NAME)
 
     embedding_response = openai_client.embeddings.create(
         input=[query_text],
@@ -34,6 +34,16 @@ def search_recipes(inventory: FridgeInventory) -> list[RecipeRecommendation]:
 
 def _vector_search_is_configured() -> bool:
     return bool(os.getenv("OPENAI_API_KEY") and os.getenv("PINECONE_API_KEY"))
+
+
+@lru_cache(maxsize=4)
+def _openai_client(api_key: str) -> OpenAI:
+    return OpenAI(api_key=api_key)
+
+
+@lru_cache(maxsize=8)
+def _pinecone_index(api_key: str, index_name: str):
+    return Pinecone(api_key=api_key).Index(index_name)
 
 
 def _recommendation_from_match(match: dict[str, object]) -> RecipeRecommendation:

@@ -8,6 +8,7 @@ def test_extract_ingredients_task_returns_photo_result():
 
     assert result["filename"] == "fridge.jpg"
     assert result["status"] == "received"
+    assert "ingredient_extraction_seconds" in result["timings"]
 
 
 def test_match_recipes_task_skips_failed_photo_analysis():
@@ -23,6 +24,7 @@ def test_match_recipes_task_skips_failed_photo_analysis():
 
     assert result["recommendations"] == []
     assert result["status"] == "unsupported_file_type"
+    assert result["timings"] == {}
 
 
 def test_match_recipes_task_searches_with_extracted_ingredients(monkeypatch):
@@ -54,6 +56,7 @@ def test_match_recipes_task_searches_with_extracted_ingredients(monkeypatch):
     assert calls[0].ingredients[0].name == "eggs"
     assert result["recommendations"][0]["recipe"]["name"] == "Egg Bowl"
     assert result["status"] == "matched"
+    assert "recipe_retrieval_seconds" in result["timings"]
 
 
 def test_refine_recipe_task_calls_refiner(monkeypatch):
@@ -76,3 +79,5 @@ def test_refine_recipe_task_calls_refiner(monkeypatch):
 
     assert result["status"] == "refined"
     assert result["refined_recipe"]["best_match"] == "Egg Bowl"
+    assert "recipe_refinement_seconds" in result["timings"]
+    assert "total_worker_seconds" in result["timings"]

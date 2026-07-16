@@ -34,7 +34,18 @@ class FakeClient:
         self.status_calls += 1
         if self.status_calls == 1:
             return FakeResponse({"status": "PENDING"})
-        return FakeResponse({"status": "SUCCESS"})
+        return FakeResponse(
+            {
+                "status": "SUCCESS",
+                "result": {
+                    "timings": {
+                        "ingredient_extraction_seconds": 1,
+                        "recipe_retrieval_seconds": 2,
+                        "recipe_refinement_seconds": 3,
+                    }
+                },
+            }
+        )
 
 
 def test_benchmark_pipeline_records_completed_task_latency(monkeypatch, tmp_path):
@@ -45,7 +56,7 @@ def test_benchmark_pipeline_records_completed_task_latency(monkeypatch, tmp_path
     timer_values = iter([0, 0.1, 1])
     monkeypatch.setattr(benchmark_module.time, "perf_counter", lambda: next(timer_values))
 
-    latencies = benchmark_pipeline(
+    results = benchmark_pipeline(
         api_url="http://testserver",
         image_path=image_path,
         runs=1,
@@ -53,4 +64,7 @@ def test_benchmark_pipeline_records_completed_task_latency(monkeypatch, tmp_path
         timeout=10,
     )
 
-    assert latencies == [1]
+    assert len(results) == 1
+    assert results[0].latency == 1
+    assert results[0].status == "SUCCESS"
+    assert results[0].timings["recipe_refinement_seconds"] == 3
