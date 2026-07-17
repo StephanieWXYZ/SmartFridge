@@ -3,6 +3,7 @@ import json
 from app.gemini_client import (
     _extract_json_text,
     _parse_json_response,
+    _substitution_list_to_dict,
     extract_ingredients_with_gemini,
     refine_recipe_with_gemini,
 )
@@ -41,3 +42,15 @@ def test_parse_json_response_rejects_wrong_shape():
         return
 
     raise AssertionError("Expected JSONDecodeError")
+
+
+def test_substitution_list_to_dict_converts_schema_shape():
+    substitutions = [
+        {"original": "tofu", "substitute": "ricotta"},
+        {"original": "spinach", "substitute": "kale"},
+    ]
+
+    assert _substitution_list_to_dict(substitutions) == {
+        "tofu": "ricotta",
+        "spinach": "kale",
+    }

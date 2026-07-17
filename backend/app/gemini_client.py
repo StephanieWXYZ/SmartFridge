@@ -17,11 +17,16 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 MAX_GEMINI_ATTEMPTS = int(os.getenv("GEMINI_MAX_ATTEMPTS", "3"))
 
 
+class RecipeSubstitution(BaseModel):
+    original: str
+    substitute: str
+
+
 class RefinedRecipeResponse(BaseModel):
     best_match: str | None = None
-    instructions: list[str] = Field(default_factory=list, max_length=3)
-    substitutions: list[str] = Field(default_factory=list, max_length=3)
-    shopping_list: list[str] = Field(default_factory=list, max_length=5)
+    instructions: list[str] = Field(default_factory=list)
+    substitutions: list[RecipeSubstitution] = Field(default_factory=list)
+    shopping_list: list[str] = Field(default_factory=list)
 
 
 def extract_ingredients_with_gemini(image_bytes: bytes) -> list[Ingredient]:
@@ -54,27 +59,28 @@ def refine_recipe_with_gemini(
         return {
             "best_match": None,
             "instructions": [],
-            "substitutions": [],
+            "substitutions": {},
             "shopping_list": [],
             "status": "ai_not_configured",
         }
 
     prompt = f"""
-    You are a helpful chef. The user has these fridge ingredients:
+    You are a helpful chef. The user has these ingredients:
     {ingredients}
 
-    These are the strongest recipe matches from the recipe index:
+    These recipes were retrieved from the recipe index:
     {recommendations}
 
-    Create a concise recipe plan using the highest-scored match. Keep the response short:
-    no more than 3 instruction steps, no more than 3 substitutions, and no more than
-    5 shopping-list items. Keep each string under 80 characters.
+    Select the best recipe, suggest substitutions from the user's ingredients,
+    and list only the missing items they still need to buy.
 
     Return JSON with:
     {{
         "best_match": "Recipe title",
         "instructions": ["step 1", "step 2"],
-        "substitutions": ["use substitute instead of original"],
+        "substitutions": [
+            {{"original": "missing or recipe ingredient", "substitute": "available ingredient"}}
+        ],
         "shopping_list": ["item"]
     }}
 
@@ -84,9 +90,10 @@ def refine_recipe_with_gemini(
     result = _generate_json(
         contents=prompt,
         expected_type=dict,
-        max_output_tokens=2048,
+        max_output_tokens=4096,
         response_schema=RefinedRecipeResponse,
     )
+    result["substitutions"] = _substitution_list_to_dict(result.get("substitutions", []))
     result["status"] = "refined"
     return result
 
@@ -146,6 +153,23 @@ def _coerce_parsed_response(parsed_response: object, expected_type: type) -> Any
     if not isinstance(parsed_response, expected_type):
         raise json.JSONDecodeError("Gemini returned the wrong parsed shape.", str(parsed_response), 0)
     return parsed_response
+
+
+def _substitution_list_to_dict(substitutions: object) -> dict[str, str]:
+    if isinstance(substitutions, dict):
+        return {str(original): str(substitute) for original, substitute in substitutions.items()}
+    if not isinstance(substitutions, list):
+        return {}
+
+    substitution_map: dict[str, str] = {}
+    for substitution in substitutions:
+        if not isinstance(substitution, dict):
+            continue
+        original = substitution.get("original")
+        substitute = substitution.get("substitute")
+        if original and substitute:
+            substitution_map[str(original)] = str(substitute)
+    return substitution_map
 
 
 def _extract_json_text(text: str) -> str:

@@ -5,18 +5,11 @@ from app.recipe_refiner import refine_recipe
 def test_refine_recipe_adds_refined_result(monkeypatch):
     def fake_refine_recipe_with_gemini(ingredients, recommendations):
         assert ingredients == [{"name": "eggs"}]
-        assert recommendations == [
-            {
-                "name": "Omelet",
-                "score": None,
-                "ingredients": [],
-                "instructions": "",
-            }
-        ]
+        assert recommendations == [{"recipe": {"name": "Omelet"}}]
         return {
             "best_match": "Omelet",
             "instructions": ["Cook eggs."],
-            "substitutions": [],
+            "substitutions": {},
             "shopping_list": [],
             "status": "refined",
         }
@@ -39,7 +32,7 @@ def test_refine_recipe_adds_refined_result(monkeypatch):
     assert result["refined_recipe"]["best_match"] == "Omelet"
 
 
-def test_refine_recipe_compacts_recommendations_for_ai_prompt(monkeypatch):
+def test_refine_recipe_sends_full_context_to_ai_prompt(monkeypatch):
     captured = {}
 
     def fake_refine_recipe_with_gemini(ingredients, recommendations):
@@ -48,7 +41,7 @@ def test_refine_recipe_compacts_recommendations_for_ai_prompt(monkeypatch):
         return {
             "best_match": "Spinach Bake",
             "instructions": [],
-            "substitutions": [],
+            "substitutions": {},
             "shopping_list": [],
             "status": "refined",
         }
@@ -80,8 +73,8 @@ def test_refine_recipe_compacts_recommendations_for_ai_prompt(monkeypatch):
         }
     )
 
-    assert captured["ingredients"] == [{"name": "eggs"}]
-    assert len(captured["recommendations"]) == 1
-    assert captured["recommendations"][0]["name"] == "Spinach Bake"
-    assert len(captured["recommendations"][0]["ingredients"]) == 12
-    assert len(captured["recommendations"][0]["instructions"]) == 700
+    assert captured["ingredients"] == [{"name": "eggs", "quantity": "2"}]
+    assert len(captured["recommendations"]) == 2
+    assert captured["recommendations"][0]["recipe"]["name"] == "Spinach Bake"
+    assert len(captured["recommendations"][0]["recipe"]["ingredients"]) == 20
+    assert captured["recommendations"][0]["recipe"]["instructions"] == ["step " * 500]
