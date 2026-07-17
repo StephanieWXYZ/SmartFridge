@@ -42,4 +42,5 @@ class TaskStatus(BaseModel):
     task_id: str
     status: str
     result: dict[str, Any] | None = None
+    error_code: str | None = None
     error: str | None = None

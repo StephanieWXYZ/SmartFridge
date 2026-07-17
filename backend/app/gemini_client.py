@@ -17,6 +17,10 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 MAX_GEMINI_ATTEMPTS = int(os.getenv("GEMINI_MAX_ATTEMPTS", "3"))
 
 
+class AiProviderQuotaError(RuntimeError):
+    pass
+
+
 class RecipeSubstitution(BaseModel):
     original: str
     substitute: str
@@ -29,6 +33,10 @@ class RefinedRecipeResponse(BaseModel):
     shopping_list: list[str] = Field(default_factory=list)
 
 
+class IngredientExtractionResponse(BaseModel):
+    ingredients: list[str] = Field(default_factory=list)
+
+
 def extract_ingredients_with_gemini(image_bytes: bytes) -> list[Ingredient]:
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
@@ -37,15 +45,24 @@ def extract_ingredients_with_gemini(image_bytes: bytes) -> list[Ingredient]:
     image = Image.open(io.BytesIO(image_bytes))
     prompt = """
     Identify all food ingredients in this fridge or pantry photo.
-    Return only a JSON list of ingredient names.
-    Example: ["milk", "eggs", "spinach"]
+    Return only food ingredient names. Ignore containers, appliances, shelves,
+    and non-food items.
+
+    Return JSON with:
+    {
+        "ingredients": ["milk", "eggs", "spinach"]
+    }
     """
 
-    ingredient_names = _generate_json(
+    result = _generate_json(
         contents=[prompt, image],
-        expected_type=list,
+        expected_type=dict,
         max_output_tokens=256,
+        response_schema=IngredientExtractionResponse,
     )
+    ingredient_names = result.get("ingredients", [])
+    if not isinstance(ingredient_names, list):
+        raise json.JSONDecodeError("Gemini returned invalid ingredient data.", str(result), 0)
 
     return [Ingredient(name=name) for name in ingredient_names]
 
@@ -128,6 +145,12 @@ def _generate_json(
             if parsed_response is not None:
                 return _coerce_parsed_response(parsed_response, expected_type)
             return _parse_json_response(response.text, expected_type)
+        except genai_errors.ClientError as error:
+            if getattr(error, "code", None) == 429 or "RESOURCE_EXHAUSTED" in str(error):
+                raise AiProviderQuotaError(
+                    "Gemini quota reached. Please wait for the quota to reset or use a different API key."
+                ) from error
+            raise
         except (json.JSONDecodeError, genai_errors.ServerError) as error:
             last_error = error
             if attempt == MAX_GEMINI_ATTEMPTS:

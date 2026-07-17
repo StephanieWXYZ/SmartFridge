@@ -1,7 +1,7 @@
 from fastapi.testclient import TestClient
 
 import app.main as main_module
-from app.main import app
+from app.main import _classify_task_error, app
 
 
 client = TestClient(app)
@@ -60,3 +60,24 @@ def test_fridge_photo_upload_queues_background_task(monkeypatch):
     data = response.json()
     assert data == {"task_id": "task-123", "status": "queued"}
     assert calls == [("fridge.jpg", "image/jpeg", b"fake image bytes".hex()), "apply_async"]
+
+
+def test_task_error_classifier_names_quota_errors():
+    error_code, message = _classify_task_error(RuntimeError("429 RESOURCE_EXHAUSTED quota exceeded"))
+
+    assert error_code == "AI_QUOTA_REACHED"
+    assert "Gemini quota reached" in message
+
+
+def test_task_error_classifier_names_parse_errors():
+    error_code, message = _classify_task_error(ValueError("Gemini returned invalid ingredient data."))
+
+    assert error_code == "AI_RESPONSE_PARSE_ERROR"
+    assert "could not parse" in message
+
+
+def test_task_error_classifier_names_unknown_errors():
+    error_code, message = _classify_task_error(RuntimeError("something surprising"))
+
+    assert error_code == "TASK_FAILED"
+    assert "unexpectedly" in message

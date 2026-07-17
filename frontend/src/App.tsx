@@ -55,12 +55,51 @@ type TaskStatus = {
   task_id: string;
   status: string;
   result?: PipelineResult | null;
+  error_code?: string | null;
   error?: string | null;
 };
 
 type UploadState = "idle" | "uploading" | "queued" | "complete" | "failed";
 
 const POLL_INTERVAL_MS = 1200;
+
+function getTaskFailureMessage(task: TaskStatus) {
+  if (task.error_code && task.error) {
+    return `${task.error_code}: ${task.error}`;
+  }
+  if (task.error_code) {
+    return `${task.error_code}: We could not finish this recipe right now.`;
+  }
+
+  const error = task.error?.trim();
+  if (error?.includes("Gemini quota reached") || error?.includes("RESOURCE_EXHAUSTED")) {
+    return "AI_QUOTA_REACHED: AI recipe generation is temporarily unavailable because the Gemini quota has been reached. Please try again after the quota resets.";
+  }
+  return error ? `TASK_FAILED: ${error}` : "TASK_FAILED: We could not finish this recipe right now.";
+}
+
+function getResultFailureMessage(result: PipelineResult) {
+  const status = result.refined_recipe?.status ?? result.photo?.status ?? result.status;
+
+  if (status === "unsupported_file_type") {
+    return "UNSUPPORTED_FILE_TYPE: Please upload a fridge or pantry photo.";
+  }
+  if (status === "empty_file") {
+    return "EMPTY_FILE: The uploaded file was empty. Please choose another photo.";
+  }
+  if (status === "ai_not_configured") {
+    return "AI_NOT_CONFIGURED: Recipe generation needs a Gemini API key before it can write a personalized recipe.";
+  }
+  if (status && status !== "refined" && status !== "matched" && status !== "received") {
+    return `${status.toUpperCase()}: We could not finish this recipe right now.`;
+  }
+
+  if (!result.refined_recipe) {
+    return "RECIPE_GENERATION_INCOMPLETE: The photo was processed, but no final recipe was returned.";
+  }
+
+  return null;
+}
 
 function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -87,10 +126,16 @@ function App() {
 
         if (nextTask.error || nextTask.status === "FAILURE") {
           setUploadState("failed");
-          setMessage("We could not finish this recipe right now.");
+          setMessage(getTaskFailureMessage(nextTask));
         } else if (nextTask.result) {
-          setUploadState("complete");
-          setMessage("Your recipe is ready.");
+          const resultError = getResultFailureMessage(nextTask.result);
+          if (resultError) {
+            setUploadState("failed");
+            setMessage(resultError);
+          } else {
+            setUploadState("complete");
+            setMessage("Your recipe is ready.");
+          }
         }
       } catch (error) {
         setUploadState("failed");
