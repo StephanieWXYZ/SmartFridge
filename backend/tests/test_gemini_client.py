@@ -53,6 +53,15 @@ def test_parse_json_response_rejects_empty_response():
     raise AssertionError("Expected JSONDecodeError")
 
 
+def test_parse_json_response_rejects_none_response():
+    try:
+        _parse_json_response(None, dict)
+    except json.JSONDecodeError:
+        return
+
+    raise AssertionError("Expected JSONDecodeError")
+
+
 def test_substitution_list_to_dict_converts_schema_shape():
     substitutions = [
         {"original": "tofu", "substitute": "ricotta"},

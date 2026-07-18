@@ -162,7 +162,7 @@ def _generate_json(
     raise RuntimeError("Gemini did not return a response.")
 
 
-def _parse_json_response(text: str, expected_type: type) -> Any:
+def _parse_json_response(text: str | None, expected_type: type) -> Any:
     clean_json = _extract_json_text(text)
     parsed = json.loads(clean_json)
     if not isinstance(parsed, expected_type):
@@ -195,7 +195,10 @@ def _substitution_list_to_dict(substitutions: object) -> dict[str, str]:
     return substitution_map
 
 
-def _extract_json_text(text: str) -> str:
+def _extract_json_text(text: str | None) -> str:
+    if text is None:
+        raise json.JSONDecodeError("Gemini returned an empty response.", "", 0)
+
     stripped = text.replace("```json", "").replace("```", "").strip()
     object_start = stripped.find("{")
     array_start = stripped.find("[")

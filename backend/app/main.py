@@ -74,8 +74,8 @@ def _classify_task_error(error: object) -> tuple[str, str]:
 
     if "openai" in normalized or "pinecone" in normalized or "embedding" in normalized:
         return (
-            "RECIPE_SEARCH_PROVIDER_ERROR",
-            "Recipe search could not reach its external provider. Please try again later.",
+            "EXTERNAL_PROVIDER_ERROR",
+            "An external AI or recipe-search provider failed. Please try again later.",
         )
 
     return ("TASK_FAILED", "The recipe task failed unexpectedly. Please try again.")
