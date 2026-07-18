@@ -1,0 +1,60 @@
+services:
+  - type: keyvalue
+    name: smartfridge-redis
+    plan: free
+    region: oregon
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
+    persistenceMode: off
+
+  - type: web
+    name: smartfridge-api
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: SERVE_FRONTEND
+        value: true
+      - key: PINECONE_INDEX_NAME
+        value: fridge-ai-recipes
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: smartfridge-redis
+          property: connectionString
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+
+  - type: worker
+    name: smartfridge-worker
+    runtime: docker
+    plan: starter
+    region: oregon
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    dockerCommand: celery -A app.worker.celery_app worker --loglevel=info
+    autoDeployTrigger: commit
+    envVars:
+      - key: SERVE_FRONTEND
+        value: false
+      - key: PINECONE_INDEX_NAME
+        value: fridge-ai-recipes
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: smartfridge-redis
+          property: connectionString
+      - key: GOOGLE_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false

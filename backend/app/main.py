@@ -1,5 +1,9 @@
+import os
+from pathlib import Path
+
 from celery.result import AsyncResult
 from fastapi import FastAPI, File, UploadFile
+from fastapi.staticfiles import StaticFiles
 
 from app.models import FridgeInventory, RecipeRecommendation, TaskStatus, TaskSubmission
 from app.recommendations import recommend_recipes
@@ -12,16 +16,19 @@ app = FastAPI(
 
 
 @app.get("/health")
+@app.get("/api/health")
 def health_check() -> dict[str, str]:
     return {"status": "ok"}
 
 
 @app.post("/recommendations", response_model=list[RecipeRecommendation])
+@app.post("/api/recommendations", response_model=list[RecipeRecommendation])
 def create_recommendations(inventory: FridgeInventory) -> list[RecipeRecommendation]:
     return recommend_recipes(inventory)
 
 
 @app.post("/fridge-photo", response_model=TaskSubmission)
+@app.post("/api/fridge-photo", response_model=TaskSubmission)
 async def upload_fridge_photo(file: UploadFile = File(...)) -> TaskSubmission:
     contents = await file.read()
     workflow = build_recipe_pipeline(file.filename, file.content_type, contents.hex())
@@ -30,6 +37,7 @@ async def upload_fridge_photo(file: UploadFile = File(...)) -> TaskSubmission:
 
 
 @app.get("/tasks/{task_id}", response_model=TaskStatus)
+@app.get("/api/tasks/{task_id}", response_model=TaskStatus)
 def get_task_status(task_id: str) -> TaskStatus:
     task_result = AsyncResult(task_id, app=celery_app)
 
@@ -79,3 +87,15 @@ def _classify_task_error(error: object) -> tuple[str, str]:
         )
 
     return ("TASK_FAILED", "The recipe task failed unexpectedly. Please try again.")
+
+
+def _mount_frontend() -> None:
+    if os.getenv("SERVE_FRONTEND", "").lower() not in {"1", "true", "yes"}:
+        return
+
+    frontend_dist = Path(__file__).resolve().parents[1] / "frontend_dist"
+    if frontend_dist.exists():
+        app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
+
+
+_mount_frontend()

@@ -84,6 +84,23 @@ Amazon ECR, and forces the ECS web and worker services to redeploy.
 
 See [Deployment](docs/deployment.md) for the required cloud setup and release steps.
 
+### Render
+
+The repo includes a `render.yaml` Blueprint for deploying SmartFridge to Render with:
+
+- a Docker web service that serves the React frontend and FastAPI API
+- a Docker Celery worker
+- a Render Key Value service for the Redis-compatible queue
+
+In Render, create a new Blueprint from this GitHub repo and provide these secret
+environment variables when prompted:
+
+- `GOOGLE_API_KEY`
+- `OPENAI_API_KEY`
+- `PINECONE_API_KEY`
+
+`PINECONE_INDEX_NAME` defaults to `fridge-ai-recipes`.
+
 ## Recipe Indexing
 
 The `backend/scripts/index_recipes.py` script indexes a CSV or JSONL recipe dataset into
