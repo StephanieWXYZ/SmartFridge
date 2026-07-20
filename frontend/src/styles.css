@@ -308,6 +308,20 @@ h1 {
   margin-bottom: 24px;
 }
 
+.return-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  margin-top: 18px;
+  padding: 0 14px;
+  border: 1px solid rgba(31, 107, 80, 0.18);
+  border-radius: 999px;
+  color: #1f6b50;
+  background: #f1f8f0;
+  font-weight: 800;
+}
+
 .eyebrow {
   display: inline-block;
   margin-bottom: 12px;
@@ -474,11 +488,30 @@ h1 {
 .match-card {
   display: grid;
   gap: 12px;
+  width: 100%;
   min-height: 150px;
   padding: 16px;
   border: 1px solid rgba(39, 54, 45, 0.1);
   border-radius: 14px;
+  color: inherit;
+  text-align: left;
   background: #fffaf0;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+}
+
+.match-card:hover,
+.match-card:focus-visible {
+  border-color: rgba(31, 107, 80, 0.38);
+  box-shadow: 0 14px 28px rgba(31, 107, 80, 0.12);
+  transform: translateY(-1px);
+}
+
+.match-card.selected {
+  border-color: rgba(31, 107, 80, 0.55);
+  background: #f1f8f0;
 }
 
 .match-card h4 {

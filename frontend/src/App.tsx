@@ -2,6 +2,7 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "re
 import type { ReactNode } from "react";
 import {
   AlertCircle,
+  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   ChefHat,
@@ -105,6 +106,7 @@ function App() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [task, setTask] = useState<TaskStatus | null>(null);
+  const [selectedMatchName, setSelectedMatchName] = useState<string | null>(null);
   const [uploadState, setUploadState] = useState<UploadState>("idle");
   const [message, setMessage] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -151,7 +153,16 @@ function App() {
   const recommendations = result?.recommendations ?? [];
   const refinedRecipe = result?.refined_recipe;
   const topRecipe = recommendations[0];
-  const shoppingList = refinedRecipe?.shopping_list ?? topRecipe?.missing_ingredients ?? [];
+  const otherRecommendations = recommendations.slice(1);
+  const selectedRecommendation =
+    otherRecommendations.find((recommendation) => recommendation.recipe.name === selectedMatchName) ?? null;
+  const shoppingList =
+    selectedRecommendation?.missing_ingredients ?? refinedRecipe?.shopping_list ?? topRecipe?.missing_ingredients ?? [];
+  const mainRecipeTitle =
+    selectedRecommendation?.recipe.name ||
+    refinedRecipe?.best_match ||
+    topRecipe?.recipe.name ||
+    "What should we make tonight?";
   const isWorking = uploadState === "uploading" || uploadState === "queued";
 
   const progressSteps = useMemo(
@@ -179,6 +190,7 @@ function App() {
     const file = event.target.files?.[0] ?? null;
     setSelectedFile(file);
     setTask(null);
+    setSelectedMatchName(null);
     setMessage("");
     setUploadState("idle");
 
@@ -212,6 +224,7 @@ function App() {
 
       const submission = (await response.json()) as TaskStatus;
       setTask(submission);
+      setSelectedMatchName(null);
       setUploadState("queued");
       setMessage("Looking for a good dinner match...");
     } catch (error) {
@@ -223,6 +236,7 @@ function App() {
   function resetUpload() {
     setSelectedFile(null);
     setTask(null);
+    setSelectedMatchName(null);
     setPreviewUrl(null);
     setUploadState("idle");
     setMessage("");
@@ -309,11 +323,21 @@ function App() {
 
           <section className="recipe-card">
             <div className="recipe-heading">
-              <span className="eyebrow">{uploadState === "complete" ? "Dinner idea" : "Recipe preview"}</span>
-              <h2>{refinedRecipe?.best_match || topRecipe?.recipe.name || "What should we make tonight?"}</h2>
+              <span className="eyebrow">
+                {selectedRecommendation ? "Selected match" : uploadState === "complete" ? "Dinner idea" : "Recipe preview"}
+              </span>
+              <h2>{mainRecipeTitle}</h2>
+              {selectedRecommendation ? (
+                <button className="return-button" type="button" onClick={() => setSelectedMatchName(null)}>
+                  <ArrowLeft size={16} />
+                  Back to best match
+                </button>
+              ) : null}
             </div>
 
-            {refinedRecipe ? (
+            {selectedRecommendation ? (
+              <RecommendationPlan recommendation={selectedRecommendation} />
+            ) : refinedRecipe ? (
               <RecipePlan recipe={refinedRecipe} />
             ) : (
               <div className="recipe-placeholder">
@@ -352,15 +376,20 @@ function App() {
           </section>
 
           <section className="matches-card">
-            <SectionHeader icon={<ChefHat size={18} />} title="Other good matches" count={recommendations.length} />
-            {recommendations.length > 0 ? (
+            <SectionHeader icon={<ChefHat size={18} />} title="Other good matches" count={otherRecommendations.length} />
+            {otherRecommendations.length > 0 ? (
               <div className="match-list">
-                {recommendations.map((recommendation) => (
-                  <RecipeMatch recommendation={recommendation} key={recommendation.recipe.name} />
+                {otherRecommendations.map((recommendation) => (
+                  <RecipeMatch
+                    isSelected={recommendation.recipe.name === selectedRecommendation?.recipe.name}
+                    onSelect={() => setSelectedMatchName(recommendation.recipe.name)}
+                    recommendation={recommendation}
+                    key={recommendation.recipe.name}
+                  />
                 ))}
               </div>
             ) : (
-              <EmptyState text="Recipe matches will appear after search." />
+              <EmptyState text="Alternative matches will appear after search." />
             )}
           </section>
         </section>
@@ -413,9 +442,43 @@ function RecipePlan({ recipe }: { recipe: RefinedRecipe }) {
   );
 }
 
-function RecipeMatch({ recommendation }: { recommendation: Recommendation }) {
+function RecommendationPlan({ recommendation }: { recommendation: Recommendation }) {
+  const instructions = recommendation.recipe.instructions;
+
   return (
-    <article className="match-card">
+    <div className="recipe-plan">
+      {instructions.length > 0 ? (
+        <ol className="instruction-list">
+          {instructions.map((step, index) => (
+            <li key={`${step}-${index}`}>
+              <span>{index + 1}</span>
+              <p>{step}</p>
+            </li>
+          ))}
+        </ol>
+      ) : (
+        <EmptyState text="Instructions were not available for this match." />
+      )}
+    </div>
+  );
+}
+
+function RecipeMatch({
+  isSelected,
+  onSelect,
+  recommendation,
+}: {
+  isSelected: boolean;
+  onSelect: () => void;
+  recommendation: Recommendation;
+}) {
+  return (
+    <button
+      className={`match-card ${isSelected ? "selected" : ""}`}
+      type="button"
+      onClick={onSelect}
+      aria-pressed={isSelected}
+    >
       <div>
         <h4>{recommendation.recipe.name}</h4>
         <p>{Math.round(recommendation.score * 100)}% match</p>
@@ -425,7 +488,7 @@ function RecipeMatch({ recommendation }: { recommendation: Recommendation }) {
           <span key={ingredient}>{ingredient}</span>
         ))}
       </div>
-    </article>
+    </button>
   );
 }
 
