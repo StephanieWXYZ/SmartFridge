@@ -3,26 +3,53 @@
 
 [![Backend CI](https://github.com/StephanieWXYZ/SmartFridge/actions/workflows/ci.yml/badge.svg)](https://github.com/StephanieWXYZ/SmartFridge/actions/workflows/ci.yml)
 
-## Backend
+SmartFridge turns a fridge or pantry photo into recipe recommendations. The system
+extracts visible ingredients from an image, searches a recipe index with semantic
+embeddings, and generates a recipe plan with substitutions and a shopping list.
 
-SmartFridge uses a FastAPI backend, Celery worker, Redis queue, and AI-powered recipe
-retrieval pipeline to turn fridge photos or ingredient lists into recipe
-recommendations.
+## Highlights
 
-Key backend capabilities:
+- Full-stack fridge-to-recipe app with React, FastAPI, Celery, and Redis
+- 3-stage AI pipeline for ingredient extraction, recipe retrieval, and recipe refinement
+- Pinecone vector search over OpenAI ingredient embeddings
+- Provider fallback handling for unreliable AI responses
+- Dockerized web, worker, and queue services
+- CI checks for linting, tests, and backend Docker builds
+- Deployment configs for AWS ECS/Terraform and Render
 
-- async image-to-recipe workflow with FastAPI, Celery, and Redis
-- 3-stage pipeline for ingredient extraction, recipe retrieval, and recipe refinement
-- OpenAI embeddings with Pinecone vector search for recipe matching
-- Docker Compose for local web, worker, and Redis services
-- Terraform and GitHub Actions for AWS ECS deployment
+## Architecture
 
-See [SmartFridge Architecture](docs/architecture.md) for the backend pipeline and
-deployment layout.
+```text
+Fridge photo
+  -> FastAPI upload endpoint
+  -> Celery task queue
+  -> Ingredient extraction
+  -> Pinecone recipe retrieval
+  -> AI recipe refinement
+  -> React recipe result
+```
+
+The backend separates the user-facing API from long-running AI work. FastAPI accepts
+the upload and returns a task ID immediately, while Celery workers process the image,
+retrieve matching recipes, and generate the final recommendation in the background.
+
+See [SmartFridge Architecture](docs/architecture.md) for more detail.
+
+## Tech Stack
+
+| Area | Tools |
+| --- | --- |
+| Frontend | React, Vite, TypeScript |
+| Backend API | FastAPI, Pydantic |
+| Background jobs | Celery, Redis |
+| AI services | Gemini, OpenAI |
+| Retrieval | Pinecone, OpenAI embeddings |
+| Infrastructure | Docker, Docker Compose, Terraform, AWS ECS, Render |
+| CI/CD | GitHub Actions |
 
 ## Local Development
 
-To run the API locally:
+### Backend
 
 ```bash
 cd backend
@@ -32,79 +59,72 @@ pip install -e ".[dev]"
 uvicorn app.main:app --reload
 ```
 
-Once it is running, the API docs are available at:
+API docs:
 
 ```text
 http://127.0.0.1:8000/docs
 ```
 
-## Environment
-
-Copy `backend/.env.example` to `backend/.env` and provide service credentials for the
-AI-backed workflow.
+### Frontend
 
 ```bash
-cd backend
-cp .env.example .env
+cd frontend
+npm install
+npm run dev
 ```
 
-The backend supports deterministic local tests without external AI credentials. Full
-image-to-recipe generation uses:
+Frontend app:
 
-- `GOOGLE_API_KEY` for Gemini ingredient extraction and recipe refinement
-- `OPENAI_API_KEY` for ingredient embeddings
-- `PINECONE_API_KEY` and `PINECONE_INDEX_NAME` for recipe vector search
-- `REDIS_URL` for Celery task queue and results
+```text
+http://127.0.0.1:5173
+```
 
-## Docker
+### Full Local Stack
 
-To run the API, worker, and Redis together:
+To run the API, Celery worker, and Redis queue together:
 
 ```bash
 cd backend
 docker compose up --build
 ```
 
-The web service runs on `http://127.0.0.1:8000`.
+## Environment Variables
 
-## CI
+Copy `backend/.env.example` to `backend/.env` and provide credentials for the AI-backed
+workflow.
 
-GitHub Actions runs backend linting, tests, and a Docker image build on pushes and pull
-requests to `main`.
+```bash
+cd backend
+cp .env.example .env
+```
 
-## Infrastructure
-
-Terraform files in `backend/terraform` define the AWS ECS deployment for the FastAPI web
-service, Celery worker, Redis service, load balancer, networking, and logs.
-
-## Deployment
-
-The deployment workflow builds separate web and worker Docker images, pushes them to
-Amazon ECR, and forces the ECS web and worker services to redeploy.
-
-See [Deployment](docs/deployment.md) for the required cloud setup and release steps.
-
-### Render
-
-The repo includes a `render.yaml` Blueprint for deploying SmartFridge to Render with:
-
-- a Docker web service that serves the React frontend and FastAPI API
-- a Docker Celery worker
-- a Render Key Value service for the Redis-compatible queue
-
-In Render, create a new Blueprint from this GitHub repo and provide these secret
-environment variables when prompted:
+Required for full image-to-recipe generation:
 
 - `GOOGLE_API_KEY`
 - `OPENAI_API_KEY`
 - `PINECONE_API_KEY`
+- `PINECONE_INDEX_NAME`
+- `REDIS_URL`
 
-`PINECONE_INDEX_NAME` defaults to `fridge-ai-recipes`.
+The test suite does not require live AI credentials.
+
+## Testing
+
+```bash
+cd backend
+python -m ruff check .
+python -m pytest
+```
+
+```bash
+cd frontend
+npm run build
+```
 
 ## Recipe Indexing
 
-The `backend/scripts/index_recipes.py` script indexes a CSV or JSONL recipe dataset into
-Pinecone using OpenAI ingredient embeddings.
+Use `backend/scripts/index_recipes.py` to index a CSV or JSONL recipe dataset into
+Pinecone with OpenAI embeddings.
 
 ```bash
 cd backend
@@ -113,8 +133,8 @@ OPENAI_API_KEY=... PINECONE_API_KEY=... python scripts/index_recipes.py path/to/
 
 ## Benchmarking
 
-The `backend/scripts/benchmark_pipeline.py` script measures end-to-end latency for the
-photo upload, Celery pipeline, recipe search, and refinement flow.
+Use `backend/scripts/benchmark_pipeline.py` to measure end-to-end latency across upload,
+Celery processing, recipe retrieval, and recipe refinement.
 
 ```bash
 cd backend
@@ -122,3 +142,33 @@ python scripts/benchmark_pipeline.py path/to/fridge.jpg --runs 5
 ```
 
 See [Benchmarking](docs/benchmarking.md) for the measurement workflow.
+
+## Deployment
+
+SmartFridge is containerized so the same application structure can run locally or in the
+cloud.
+
+### AWS ECS
+
+Terraform files in `backend/terraform` define an AWS ECS deployment with separate web,
+worker, Redis, load balancer, networking, and log resources. GitHub Actions includes a
+deployment workflow for building backend images, pushing to Amazon ECR, and redeploying
+ECS services.
+
+See [Deployment](docs/deployment.md) for AWS setup and release steps.
+
+### Render
+
+The repo also includes a `render.yaml` Blueprint for a cost-conscious demo deployment:
+
+- `smartfridge-api`: Docker web service serving the React frontend and FastAPI API
+- `smartfridge-worker`: Docker Celery worker
+- `smartfridge-redis`: Render Key Value service for the Redis-compatible queue
+
+Render prompts for these secret environment variables during Blueprint setup:
+
+- `GOOGLE_API_KEY`
+- `OPENAI_API_KEY`
+- `PINECONE_API_KEY`
+
+`PINECONE_INDEX_NAME` defaults to `fridge-ai-recipes`.
