@@ -7,6 +7,12 @@ SmartFridge turns a fridge or pantry photo into recipe recommendations. The syst
 extracts visible ingredients from an image, searches a recipe index with semantic
 embeddings, and generates a recipe plan with substitutions and a shopping list.
 
+## Demo
+
+[Watch the SmartFridge demo](https://youtu.be/SP3V6mZnOCo)
+
+![SmartFridge recipe recommendation demo](docs/demo-screenshot.png)
+
 ## Highlights
 
 - Full-stack fridge-to-recipe app with React, FastAPI, Celery, and Redis
